@@ -1,5 +1,6 @@
 stages:
   - test
+  - deploy
 
 image: node:14.17.0-alpine
 
@@ -22,3 +23,11 @@ prettier:
   stage: test
   script:
     - npm run check:format
+
+deploy:
+  stage: deploy
+  script:
+    - eval${ssh-agent -s}
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
