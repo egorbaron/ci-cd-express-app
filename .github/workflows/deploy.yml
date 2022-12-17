@@ -1,24 +1,39 @@
-name: Lint and deploy
+name: Build and Deploy
 
-on: 
+on:
   push:
     branches: [main]
 
+  workflow_dispatch:
+
 jobs:
-  eslint:
+  build_and_deploy:
     runs-on: ubuntu-latest
-    container:
-      image: node:14.17.0-alpine
     steps:
       - uses: actions/checkout@v2
-      - name: Cache node.js
+      - name: Cache dependencies
         uses: actions/cache@v2
-        env:
-          cache-name: npm-${{ hashFiles('package-lock.json') }}
         with:
           path: ~/.npm
           key: npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-
       - name: Install dependencies
-        run: npm install
-      - name: Lint source code with ESLint
-        run: npm run lint
+        run: npm ci --ignore-scripts
+      - name: Build
+        run: npm run build
+        env:
+          REACT_APP_BACKEND_URL: ${{ secrets.API_URL }}
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 700 ~/.ssh
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+      - name: Copy files to the server
+        run: |
+          scp -r build/* $SSH_USER@$SSH_HOST:~/realworld/public
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
